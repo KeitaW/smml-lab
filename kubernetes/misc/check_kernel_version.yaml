@@ -1,0 +1,13 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: uname-job
+spec:
+  template:
+    spec:
+      containers:
+      - name: uname-container
+        image: busybox
+        command: ["uname", "-r"]
+      restartPolicy: Never
+
