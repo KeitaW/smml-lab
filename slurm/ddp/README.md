@@ -1,4 +1,4 @@
-## The Minimal PyTorch DDP Example on Slurm with Enroot/Pyxis
+## Minimal PyTorch DDP Example on Slurm with Enroot/Pyxis
 
 This repository demonstrates how to run multi-node distributed training using PyTorch's Distributed Data Parallel (DDP) on a Slurm cluster. It leverages **Enroot** and **Pyxis** for containerized execution, providing a streamlined and reproducible environment.
 
