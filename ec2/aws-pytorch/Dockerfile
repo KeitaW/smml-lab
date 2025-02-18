@@ -4,9 +4,10 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # The three must-be-built packages.
 # Efa-installer>=1.29.1 required for nccl>=2.19.0 to avoid libfabric NCCL error.
-ENV EFA_INSTALLER_VERSION=1.35.0
+ENV EFA_INSTALLER_VERSION=1.37.0
 ENV AWS_OFI_NCCL_VERSION=1.12.1-aws
 ENV NCCL_TESTS_VERSION=master
+ENV NCCL_VERSION=v2.23.4-1
 
 ## Uncomment below when this Dockerfile builds a container image with efa-installer<1.29.1 and
 # nccl>=2.19.0. See https://github.com/aws-samples/awsome-distributed-training/tree/main/1.architectures/efa-cheatsheet.md
@@ -91,7 +92,6 @@ ENV PATH=/opt/amazon/efa/bin:/opt/amazon/openmpi/bin:$PATH
 # NCCL EFA plugin (aws-ofi-nccl) depends on mpi, hence we must rebuild openmpi before building the
 # aws-ofi-ccnl.
 ####################################################################################################
-ENV NCCL_VERSION=2.19.3-1
 RUN apt-get remove -y libnccl2 libnccl-dev \
    && cd /tmp \
    && git clone https://github.com/NVIDIA/nccl.git -b v${NCCL_VERSION} \
