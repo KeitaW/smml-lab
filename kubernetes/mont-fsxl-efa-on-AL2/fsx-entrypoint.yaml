@@ -1,0 +1,91 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: entrypoint
+  labels:
+    app: default-init
+data:
+  entrypoint.sh: |
+    #!/usr/bin/env bash
+
+    set -euxo pipefail
+
+    ROOT_MOUNT_DIR="${ROOT_MOUNT_DIR:-/root}"
+
+    # Compile lustre client with EFA support
+    # https://docs.aws.amazon.com/fsx/latest/LustreGuide/configure-efa-clients.html
+
+    echo "Started ${0} at $(date)"
+    yum update -y
+    yum install -y iproute hostname kmod
+    ip -br -4 a sh
+    hostname -i
+ 
+    eth_intf="$(ip -br -4 a sh | grep eth1 | awk '{print $3}')"
+    efa_version=$(modinfo efa | awk '/^version:/ {print $2}' | sed 's/[^0-9.]//g')
+    min_efa_version="2.12.1"
+
+    # Check the EFA driver version. Minimum v2.12.1 supported
+    if [[ -z "$efa_version" ]]; then
+        echo "Error: EFA driver not found"
+        exit 1
+    fi
+
+    if [[ "$(printf '%s\n' "$min_efa_version" "$efa_version" | sort -V | head -n1)" != "$min_efa_version" ]]; then
+        echo "Error: EFA driver version $efa_version does not meet the minimum requirement $min_efa_version"
+        exit 1
+    else
+        echo "Using EFA driver version $efa_version"
+    fi
+
+    echo "Loading Lustre/EFA modules..."
+    /sbin/modprobe lnet
+    /sbin/modprobe kefalnd ipif_name="$eth_intf"
+    /sbin/modprobe ksocklnd
+    lnetctl lnet configure
+      
+    echo "Configuring TCP interface..."
+    lnetctl net del --net tcp 2> /dev/null
+    lnetctl net add --net tcp --if $eth_intf
+
+    # For P5 instance type which supports 32 network cards,
+    # by default add 8 EFA interfaces selecting every 4th device (1 per PCI bus)
+    echo "Configuring EFA interface(s)..."
+    instance_type="$(ec2-metadata --instance-type | awk '{ print $2 }')"
+    num_efa_devices="$(ls -1 /sys/class/infiniband | wc -l)"
+    echo "Found $num_efa_devices available EFA device(s)"
+      
+    if [[ "$instance_type" == "p5.48xlarge" || "$instance_type" == "p5e.48xlarge" ]]; then
+        for intf in $(ls -1 /sys/class/infiniband | awk 'NR % 4 == 1'); do
+            sudo lnetctl net add --net efa --if $intf --peer-credits 32
+        done
+    else
+    # Other instances: Configure 2 EFA interfaces by default if the instance supports multiple network cards,
+    # or 1 interface for single network card instances
+    # Can be modified to add more interfaces if instance type supports it
+        sudo lnetctl net add --net efa --if $(ls -1 /sys/class/infiniband | head -n1) --peer-credits 32
+        if [[ $num_efa_devices -gt 1 ]]; then
+            sudo lnetctl net add --net efa --if $(ls -1 /sys/class/infiniband | tail -n1) --peer-credits 32
+        fi
+    fi
+
+    echo "Setting discovery and UDSP rule"
+    lnetctl set discovery 1
+    lnetctl udsp add --src efa --priority 0
+    /sbin/modprobe lustre
+    
+    lnetctl net show
+    echo "Added $(sudo lnetctl net show | grep -c '@efa') EFA interface(s)"
+    apt-get install amazon-ec2-utils cron
+    chmod +x configure-efa-fsx-lustre-client.sh
+    ./configure-efa-fsx-lustre-client.sh
+
+    # Installing the GDS driver
+    git clone https://github.com/NVIDIA/gds-nvidia-fs.git
+    cd gds-nvidia-fs/src/
+    export NVFS_MAX_PEER_DEVS=128
+    export NVFS_MAX_PCI_DEPTH=16
+    make
+    insmod nvidia-fs.ko
+
+

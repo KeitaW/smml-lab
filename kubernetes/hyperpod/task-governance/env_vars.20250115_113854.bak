@@ -1,0 +1,19 @@
+export AWS_REGION=us-east-2
+export EKS_CLUSTER_NAME=hyperpod-eks-tg-cluster
+export EKS_CLUSTER_ARN=arn:aws:eks:us-east-2:159553542841:cluster/hyperpod-eks-tg-cluster
+export BUCKET_NAME=hyperpod-eks-tg-bucket-159553542841-us-east-2
+export EXECUTION_ROLE=arn:aws:iam::159553542841:role/hyperpod-eks-tg-ExecutionRole-us-east-2
+export VPC_ID=vpc-038011fbf2b32a23a
+export SUBNET_ID=subnet-052d3042254674824
+export SECURITY_GROUP=sg-04cf1784a9bfcd0dc
+export HP_CLUSTER_NAME=ml-cluster
+export ACCEL_INSTANCE_TYPE=ml.p5en.48xlarge
+export ACCEL_COUNT=2
+export ACCEL_VOLUME_SIZE=500
+export GEN_INSTANCE_TYPE=ml.m5.2xlarge
+export GEN_COUNT=1
+export GEN_VOLUME_SIZE=500
+export NODE_RECOVERY=Automatic
+export AWS_PROFILE=compute-sa-team-Admin 
+export ACCEL_INSTANCE_TYPE=ml.p5en.48xlarge
+export TRAININGPLAN_ARN=arn:aws:sagemaker:us-east-2:159553542841:training-plan/hyperpod-eks-tp-testexport STACK_ID=hyperpod-eks-full-stack
