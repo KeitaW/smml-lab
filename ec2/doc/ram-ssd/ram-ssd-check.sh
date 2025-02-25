@@ -9,7 +9,7 @@ set -euo pipefail
 # Update package list and install required packages (nvme-cli and fio)
 echo -e "\n===== Installing Required Packages ====="
 sudo apt-get update
-sudo apt-get install -y nvme-cli fio
+sudo apt-get install -y nvme-cli fio sysbench
 
 
 # Gather system information
@@ -93,5 +93,16 @@ sudo fio --name=randwrite \
     --numjobs=4 \
     --runtime=60 \
     --group_reporting
+
+# Memory Performance Tests
+
+# Memory Write Performance Test
+echo -e "\n===== Running sysbench Memory Write Performance Test ====="
+sysbench memory --memory-block-size=1M --memory-total-size=10G run
+
+# Memory Read Performance Test
+echo -e "\n===== Running sysbench Memory Read Performance Test ====="
+sysbench memory --memory-oper=read --memory-block-size=1M --memory-total-size=10G run
+
 
 echo -e "\nPerformance tests completed."
