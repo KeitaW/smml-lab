@@ -1,0 +1,308 @@
+===== CPU Information =====
+Architecture:             x86_64
+  CPU op-mode(s):         32-bit, 64-bit
+  Address sizes:          48 bits physical, 48 bits virtual
+  Byte Order:             Little Endian
+CPU(s):                   192
+  On-line CPU(s) list:    0-191
+Vendor ID:                AuthenticAMD
+  Model name:             AMD EPYC 7R13 Processor
+    CPU family:           25
+    Model:                1
+    Thread(s) per core:   2
+    Core(s) per socket:   48
+    Socket(s):            2
+    Stepping:             1
+    BogoMIPS:             5299.99
+    Flags:                fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rd
+                          tscp lm constant_tsc rep_good nopl nonstop_tsc cpuid extd_apicid aperfmperf tsc_known_freq pni pclmulqdq monitor ssse3 fma cx16 pcid sse4_
+                          1 sse4_2 x2apic movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch topoex
+                          t perfctr_core ssbd ibrs ibpb stibp vmmcall fsgsbase bmi1 avx2 smep bmi2 invpcid rdseed adx smap clflushopt clwb sha_ni xsaveopt xsavec xg
+                          etbv1 clzero xsaveerptr rdpru wbnoinvd arat npt nrip_save vaes vpclmulqdq rdpid
+Virtualization features:
+  Hypervisor vendor:      KVM
+  Virtualization type:    full
+Caches (sum of all):
+  L1d:                    3 MiB (96 instances)
+  L1i:                    3 MiB (96 instances)
+  L2:                     48 MiB (96 instances)
+  L3:                     384 MiB (12 instances)
+NUMA:
+  NUMA node(s):           2
+  NUMA node0 CPU(s):      0-47,96-143
+  NUMA node1 CPU(s):      48-95,144-191
+Vulnerabilities:
+  Gather data sampling:   Not affected
+  Itlb multihit:          Not affected
+  L1tf:                   Not affected
+  Mds:                    Not affected
+  Meltdown:               Not affected
+  Mmio stale data:        Not affected
+  Reg file data sampling: Not affected
+  Retbleed:               Not affected
+  Spec rstack overflow:   Vulnerable: Safe RET, no microcode
+  Spec store bypass:      Mitigation; Speculative Store Bypass disabled via prctl
+  Spectre v1:             Mitigation; usercopy/swapgs barriers and __user pointer sanitization
+  Spectre v2:             Mitigation; Retpolines; IBPB conditional; IBRS_FW; STIBP always-on; RSB filling; PBRSB-eIBRS Not affected; BHI Not affected
+  Srbds:                  Not affected
+  Tsx async abort:        Not affected
+
+===== Memory Layout =====
+H/W path          Device           Class          Description
+=============================================================
+/0/1                               memory         64KiB BIOS
+/0/4/6                             memory         3MiB L1 cache
+/0/4/7                             memory         24MiB L2 cache
+/0/4/8                             memory         192MiB L3 cache
+/0/5/9                             memory         3MiB L1 cache
+/0/5/a                             memory         24MiB L2 cache
+/0/5/b                             memory         192MiB L3 cache
+/0/c                               memory         1536GiB System Memory
+/0/c/0                             memory         768GiB DIMM DDR4 Static column Pseudo-static Synchronous Window DRAM 3200 MHz (0.3 ns)
+/0/c/1                             memory         768GiB DIMM DDR4 Static column Pseudo-static Synchronous Window DRAM 3200 MHz (0.3 ns)
+
+===== Block Devices =====
+NAME                 MAJ:MIN RM  SIZE RO TYPE MOUNTPOINTS
+loop0                  7:0    0 73.9M  1 loop /snap/core22/1748
+loop1                  7:1    0 44.4M  1 loop /snap/snapd/23545
+loop2                  7:2    0 26.3M  1 loop /snap/amazon-ssm-agent/9881
+loop3                  7:3    0 63.7M  1 loop /snap/core20/2434
+loop4                  7:4    0 89.4M  1 loop /snap/lxd/31333
+loop5                  7:5    0 63.7M  1 loop /snap/core20/2496
+loop6                  7:6    0 27.2M  1 loop /snap/amazon-ssm-agent/11232
+nvme0n1              259:0    0   40G  0 disk
+├─nvme0n1p1          259:1    0 39.9G  0 part /
+├─nvme0n1p14         259:2    0    4M  0 part
+└─nvme0n1p15         259:3    0  106M  0 part /boot/efi
+nvme1n1              259:4    0  1.7T  0 disk
+└─vg.01-lv_ephemeral 252:0    0  6.9T  0 lvm  /opt/dlami/nvme
+nvme2n1              259:5    0  1.7T  0 disk
+└─vg.01-lv_ephemeral 252:0    0  6.9T  0 lvm  /opt/dlami/nvme
+nvme3n1              259:6    0  1.7T  0 disk
+└─vg.01-lv_ephemeral 252:0    0  6.9T  0 lvm  /opt/dlami/nvme
+nvme4n1              259:7    0  1.7T  0 disk
+└─vg.01-lv_ephemeral 252:0    0  6.9T  0 lvm  /opt/dlami/nvme
+
+===== NVMe Devices =====
+Node                  SN                   Model                                    Namespace Usage                      Format           FW Rev
+--------------------- -------------------- ---------------------------------------- --------- -------------------------- ---------------- --------
+/dev/nvme0n1          vol02125966b3f74e0b6 Amazon Elastic Block Store               1          42.95  GB /  42.95  GB    512   B +  0 B   2.0
+/dev/nvme1n1          AWS64BA1FB155A1A6686 Amazon EC2 NVMe Instance Storage         1           1.90  TB /   1.90  TB    512   B +  0 B   0
+/dev/nvme2n1          AWS430F8AC98F3934592 Amazon EC2 NVMe Instance Storage         1           1.90  TB /   1.90  TB    512   B +  0 B   0
+/dev/nvme3n1          AWS228B1D9114D1F4860 Amazon EC2 NVMe Instance Storage         1           1.90  TB /   1.90  TB    512   B +  0 B   0
+/dev/nvme4n1          AWS18E3D46913D9520F2 Amazon EC2 NVMe Instance Storage         1           1.90  TB /   1.90  TB    512   B +  0 B   0
+
+Detecting first 'Amazon EC2 NVMe Instance Storage' device...
+Found device: /dev/nvme1n1
+
+===== Running fio Sequential Read Test =====
+seqread: (g=0): rw=read, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=libaio, iodepth=32
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1)
+seqread: (groupid=0, jobs=1): err= 0: pid=8668: Tue Feb 25 06:23:54 2025
+  read: IOPS=2303, BW=2304MiB/s (2416MB/s)(4096MiB/1778msec)
+    slat (usec): min=38, max=4177, avg=429.34, stdev=240.17
+    clat (usec): min=3275, max=37933, avg=13393.39, stdev=7189.11
+     lat (usec): min=3336, max=38769, avg=13822.90, stdev=7416.33
+    clat percentiles (usec):
+     |  1.00th=[ 8455],  5.00th=[ 8979], 10.00th=[ 8979], 20.00th=[ 9241],
+     | 30.00th=[ 9241], 40.00th=[ 9241], 50.00th=[ 9241], 60.00th=[ 9372],
+     | 70.00th=[ 9372], 80.00th=[25822], 90.00th=[25822], 95.00th=[25822],
+     | 99.00th=[25822], 99.50th=[25822], 99.90th=[34866], 99.95th=[36439],
+     | 99.99th=[38011]
+   bw (  MiB/s): min= 1202, max= 3268, per=100.00%, avg=2498.67, stdev=1129.45, samples=3
+   iops        : min= 1202, max= 3268, avg=2498.67, stdev=1129.45, samples=3
+  lat (msec)   : 4=0.17%, 10=73.24%, 20=1.90%, 50=24.68%
+  cpu          : usr=0.17%, sys=11.82%, ctx=4016, majf=0, minf=8204
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.2%, 16=0.4%, 32=99.2%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.1%, 64=0.0%, >=64=0.0%
+     issued rwts: total=4096,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=32
+
+Run status group 0 (all jobs):
+   READ: bw=2304MiB/s (2416MB/s), 2304MiB/s-2304MiB/s (2416MB/s-2416MB/s), io=4096MiB (4295MB), run=1778-1778msec
+
+Disk stats (read/write):
+  nvme1n1: ios=31078/0, merge=0/0, ticks=195186/0, in_queue=195186, util=94.07%
+
+===== Running fio Sequential Write Test =====
+seqwrite: (g=0): rw=write, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=libaio, iodepth=32
+fio-3.28
+Starting 1 process
+Jobs: 1 (f=1): [W(1)][100.0%][w=601MiB/s][w=601 IOPS][eta 00m:00s]
+seqwrite: (groupid=0, jobs=1): err= 0: pid=8868: Tue Feb 25 06:23:59 2025
+  write: IOPS=806, BW=807MiB/s (846MB/s)(4096MiB/5076msec); 0 zone resets
+    slat (usec): min=46, max=1702, avg=1231.57, stdev=613.19
+    clat (usec): min=6140, max=75331, avg=38396.88, stdev=18867.31
+     lat (usec): min=6220, max=76998, avg=39628.62, stdev=19474.85
+    clat percentiles (usec):
+     |  1.00th=[11469],  5.00th=[11469], 10.00th=[11469], 20.00th=[11469],
+     | 30.00th=[11469], 40.00th=[51643], 50.00th=[51643], 60.00th=[51643],
+     | 70.00th=[51643], 80.00th=[51643], 90.00th=[51643], 95.00th=[51643],
+     | 99.00th=[51643], 99.50th=[51643], 99.90th=[68682], 99.95th=[71828],
+     | 99.99th=[74974]
+   bw (  KiB/s): min=614400, max=2727936, per=100.00%, avg=826572.80, stdev=668072.40, samples=10
+   iops        : min=  600, max= 2664, avg=807.20, stdev=652.41, samples=10
+  lat (msec)   : 10=0.32%, 20=32.40%, 50=0.93%, 100=66.36%
+  cpu          : usr=1.06%, sys=3.31%, ctx=4081, majf=0, minf=12
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.2%, 16=0.4%, 32=99.2%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.1%, 64=0.0%, >=64=0.0%
+     issued rwts: total=0,4096,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=32
+
+Run status group 0 (all jobs):
+  WRITE: bw=807MiB/s (846MB/s), 807MiB/s-807MiB/s (846MB/s-846MB/s), io=4096MiB (4295MB), run=5076-5076msec
+
+Disk stats (read/write):
+  nvme1n1: ios=0/31608, merge=0/0, ticks=0/594540, in_queue=594541, util=97.64%
+
+===== Running fio Random Read Test =====
+randread: (g=0): rw=randread, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+...
+fio-3.28
+Starting 4 processes
+Jobs: 4 (f=4): [r(4)][100.0%][r=611MiB/s][r=156k IOPS][eta 00m:00s]
+randread: (groupid=0, jobs=4): err= 0: pid=9071: Tue Feb 25 06:24:05 2025
+  read: IOPS=203k, BW=794MiB/s (833MB/s)(4096MiB/5158msec)
+    slat (usec): min=2, max=507, avg= 2.63, stdev= 1.20
+    clat (usec): min=244, max=3225, avg=1254.83, stdev=543.33
+     lat (usec): min=249, max=3227, avg=1257.52, stdev=543.31
+    clat percentiles (usec):
+     |  1.00th=[  392],  5.00th=[  429], 10.00th=[  457], 20.00th=[  490],
+     | 30.00th=[  553], 40.00th=[ 1582], 50.00th=[ 1614], 60.00th=[ 1631],
+     | 70.00th=[ 1647], 80.00th=[ 1647], 90.00th=[ 1663], 95.00th=[ 1680],
+     | 99.00th=[ 1713], 99.50th=[ 1713], 99.90th=[ 1745], 99.95th=[ 1745],
+     | 99.99th=[ 1860]
+   bw (  KiB/s): min=623280, max=2109728, per=100.00%, avg=819643.20, stdev=114222.81, samples=40
+   iops        : min=155820, max=527432, avg=204910.80, stdev=28555.70, samples=40
+  lat (usec)   : 250=0.01%, 500=23.07%, 750=9.82%, 1000=0.03%
+  lat (msec)   : 2=67.07%, 4=0.01%
+  cpu          : usr=4.84%, sys=17.62%, ctx=216847, majf=0, minf=308
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=1048576,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: bw=794MiB/s (833MB/s), 794MiB/s-794MiB/s (833MB/s-833MB/s), io=4096MiB (4295MB), run=5158-5158msec
+
+Disk stats (read/write):
+  nvme1n1: ios=1039894/0, merge=0/0, ticks=1286030/0, in_queue=1286030, util=98.06%
+
+===== Running fio Random Write Test =====
+randwrite: (g=0): rw=randwrite, bs=(R) 4096B-4096B, (W) 4096B-4096B, (T) 4096B-4096B, ioengine=libaio, iodepth=64
+...
+fio-3.28
+Starting 4 processes
+Jobs: 4 (f=4): [w(4)][100.0%][w=305MiB/s][w=78.2k IOPS][eta 00m:00s]
+randwrite: (groupid=0, jobs=4): err= 0: pid=9275: Tue Feb 25 06:24:18 2025
+  write: IOPS=85.0k, BW=332MiB/s (348MB/s)(4096MiB/12337msec); 0 zone resets
+    slat (usec): min=2, max=962, avg= 2.64, stdev= 3.98
+    clat (usec): min=150, max=6511, avg=3003.13, stdev=826.97
+     lat (usec): min=152, max=6513, avg=3005.83, stdev=826.98
+    clat percentiles (usec):
+     |  1.00th=[  396],  5.00th=[  449], 10.00th=[ 3228], 20.00th=[ 3261],
+     | 30.00th=[ 3261], 40.00th=[ 3261], 50.00th=[ 3261], 60.00th=[ 3261],
+     | 70.00th=[ 3294], 80.00th=[ 3294], 90.00th=[ 3294], 95.00th=[ 3294],
+     | 99.00th=[ 3294], 99.50th=[ 3294], 99.90th=[ 3326], 99.95th=[ 3326],
+     | 99.99th=[ 3621]
+   bw (  KiB/s): min=311768, max=990784, per=100.00%, avg=340980.33, stdev=34075.24, samples=96
+   iops        : min=77942, max=247696, avg=85245.08, stdev=8518.81, samples=96
+  lat (usec)   : 250=0.01%, 500=7.97%, 750=1.34%, 1000=0.10%
+  lat (msec)   : 2=0.12%, 4=90.46%, 10=0.01%
+  cpu          : usr=2.47%, sys=8.93%, ctx=493065, majf=0, minf=48
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.1%, >=64=100.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,1048576,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=332MiB/s (348MB/s), 332MiB/s-332MiB/s (348MB/s-348MB/s), io=4096MiB (4295MB), run=12337-12337msec
+
+Disk stats (read/write):
+  nvme1n1: ios=0/1029988, merge=0/0, ticks=0/3085034, in_queue=3085034, util=99.21%
+
+===== Running sysbench Memory Write Performance Test =====
+sysbench 1.0.20 (using system LuaJIT 2.1.0-beta3)
+
+Running the test with following options:
+Number of threads: 1
+Initializing random number generator from current time
+
+
+Running memory speed test with the following options:
+  block size: 1024KiB
+  total size: 10240MiB
+  operation: write
+  scope: global
+
+Initializing worker threads...
+
+Threads started!
+
+Total operations: 10240 (28865.08 per second)
+
+10240.00 MiB transferred (28865.08 MiB/sec)
+
+
+General statistics:
+    total time:                          0.3541s
+    total number of events:              10240
+
+Latency (ms):
+         min:                                    0.03
+         avg:                                    0.03
+         max:                                    0.12
+         95th percentile:                        0.04
+         sum:                                  352.23
+
+Threads fairness:
+    events (avg/stddev):           10240.0000/0.00
+    execution time (avg/stddev):   0.3522/0.00
+
+
+===== Running sysbench Memory Read Performance Test =====
+sysbench 1.0.20 (using system LuaJIT 2.1.0-beta3)
+
+Running the test with following options:
+Number of threads: 1
+Initializing random number generator from current time
+
+
+Running memory speed test with the following options:
+  block size: 1024KiB
+  total size: 10240MiB
+  operation: read
+  scope: global
+
+Initializing worker threads...
+
+Threads started!
+
+Total operations: 10240 (49901.56 per second)
+
+10240.00 MiB transferred (49901.56 MiB/sec)
+
+
+General statistics:
+    total time:                          0.2045s
+    total number of events:              10240
+
+Latency (ms):
+         min:                                    0.02
+         avg:                                    0.02
+         max:                                    0.08
+         95th percentile:                        0.02
+         sum:                                  202.62
+
+Threads fairness:
+    events (avg/stddev):           10240.0000/0.00
+    execution time (avg/stddev):   0.2026/0.00
+
+
+Performance tests completed.
