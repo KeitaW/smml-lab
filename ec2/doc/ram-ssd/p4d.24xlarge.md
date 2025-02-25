@@ -1,3 +1,4 @@
+```
 ===== CPU Information =====
 Architecture:                         x86_64
 CPU op-mode(s):                       32-bit, 64-bit
@@ -232,3 +233,4 @@ Disk stats (read/write):
   nvme1n1: ios=0/1042902, merge=0/0, ticks=0/975672, in_queue=975672, util=97.41%
 
 Performance tests completed.
+```
