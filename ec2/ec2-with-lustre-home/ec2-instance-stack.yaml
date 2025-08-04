@@ -133,7 +133,7 @@ Resources:
                       response = ec2.describe_images(
                           Owners=['amazon'],
                           Filters=[
-                              {'Name': 'name', 'Values': ['*ubuntu-22.04*deep-learning*']},
+                              {'Name': 'name', 'Values': ['Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04)*']},
                               {'Name': 'state', 'Values': ['available']},
                               {'Name': 'architecture', 'Values': ['x86_64']}
                           ]
@@ -197,6 +197,12 @@ Resources:
       SubnetId: !Ref SubnetId
       SecurityGroupIds:
         - !Ref SecurityGroupId
+      CapacityReservationSpecification:
+        !If
+          - UseCapacityReservation
+          - CapacityReservationTarget:
+              CapacityReservationId: !Ref CapacityReservationId
+          - !Ref AWS::NoValue
       BlockDeviceMappings:
         - DeviceName: /dev/sda1
           Ebs:
@@ -292,9 +298,6 @@ Resources:
           echo "FSx mount status:"
           df -h /mnt/fsx
           
-      CapacityReservationSpecification:
-        CapacityReservationTarget:
-          CapacityReservationId: !Ref CapacityReservationId
       Tags:
         - Key: Name
           Value: !Sub '${AWS::StackName}-EC2Instance'
