@@ -26,12 +26,10 @@ Parameters:
     Description: EC2 instance type
     Type: String
     Default: g4dn.xlarge
-    AllowedPattern: '^[a-z][0-9]+[a-z]*\.[a-z0-9]+$'
-    ConstraintDescription: Must be a valid EC2 instance type
   
   KeyPairName:
     Description: Name of existing EC2 key pair for SSH access
-    Type: AWS::EC2::KeyPair::KeyName
+    Type: String
     ConstraintDescription: Must be the name of an existing EC2 KeyPair
   
   CapacityReservationId:
@@ -187,117 +185,125 @@ Resources:
       ServiceToken: !GetAtt AMILookupFunction.Arn
       Region: !Ref 'AWS::Region'
 
-  EC2Instance:
-    Type: AWS::EC2::Instance
+  EC2LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
     Properties:
-      ImageId: !GetAtt LatestUbuntu22DLAMI.AMI
-      InstanceType: !Ref InstanceType
-      KeyName: !Ref KeyPairName
-      IamInstanceProfile: !Ref EC2InstanceProfile
-      SubnetId: !Ref SubnetId
-      SecurityGroupIds:
-        - !Ref SecurityGroupId
-      CapacityReservationSpecification:
-        !If
+      LaunchTemplateName: !Sub '${AWS::StackName}-LaunchTemplate'
+      LaunchTemplateData:
+        ImageId: !GetAtt LatestUbuntu22DLAMI.AMI
+        InstanceType: !Ref InstanceType
+        KeyName: !Ref KeyPairName
+        IamInstanceProfile:
+          Arn: !GetAtt EC2InstanceProfile.Arn
+        SecurityGroupIds:
+          - !Ref SecurityGroupId
+        CapacityReservationSpecification: !If
           - UseCapacityReservation
           - CapacityReservationTarget:
               CapacityReservationId: !Ref CapacityReservationId
           - !Ref AWS::NoValue
-      BlockDeviceMappings:
-        - DeviceName: /dev/sda1
-          Ebs:
-            VolumeSize: !Ref VolumeSize
-            VolumeType: gp3
-            DeleteOnTermination: true
-      UserData:
-        Fn::Base64: !Sub |
-          #!/bin/bash
-          set -e
-          
-          # Log all output
-          exec > >(tee /var/log/user-data.log)
-          exec 2>&1
-          
-          echo "Starting user data script..."
-          
-          # Update system
-          apt-get update
-          apt-get upgrade -y
-          
-          # Install SSM agent
-          echo "Installing SSM agent..."
-          apt-get install -y snapd
-          snap install amazon-ssm-agent --classic
-          systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service
-          systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service
-          
-          # Check if Lustre client is already installed (Deep Learning AMI should have it)
-          echo "Checking Lustre client installation..."
-          if ! command -v mount.lustre &> /dev/null; then
-            echo "Lustre client not found, attempting installation..."
+        BlockDeviceMappings:
+          - DeviceName: /dev/sda1
+            Ebs:
+              VolumeSize: !Ref VolumeSize
+              VolumeType: gp3
+              DeleteOnTermination: true
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+            set -e
+            
+            # Log all output
+            exec > >(tee /var/log/user-data.log)
+            exec 2>&1
+            
+            echo "Starting user data script..."
+            
+            # Update system
             apt-get update
-            apt-get install -y lustre-client-utils || echo "Lustre installation failed"
-          else
-            echo "Lustre client already installed"
-          fi
-          
-          # Mount FSx for Lustre
-          mkdir -p /mnt/fsx
-          mount -t lustre -o relatime,flock ${FSxFileSystemId}.fsx.${AWS::Region}.amazonaws.com@tcp:/${FSxMountName} /mnt/fsx
-          
-          # Add to fstab for persistent mounting
-          echo "${FSxFileSystemId}.fsx.${AWS::Region}.amazonaws.com@tcp:/${FSxMountName} /mnt/fsx lustre relatime,flock,_netdev 0 0" >> /etc/fstab
-          
-          # Create backup of original home directory
-          if [ -d /home/ubuntu ]; then
-            echo "Backing up existing home directory..."
-            cp -rp /home/ubuntu /home/ubuntu.backup
-          fi
-          
-          # Create ubuntu user directory on FSx if it doesn't exist
-          if [ ! -d /mnt/fsx/ubuntu ]; then
-            echo "Creating ubuntu directory on FSx..."
-            mkdir -p /mnt/fsx/ubuntu
-            cp -rp /home/ubuntu.backup/. /mnt/fsx/ubuntu/
-            chown -R ubuntu:ubuntu /mnt/fsx/ubuntu
-          fi
-          
-          # Update /etc/passwd to point home directory to FSx
-          echo "Updating home directory to FSx..."
-          usermod -d /mnt/fsx/ubuntu ubuntu
-          
-          # Create symlink for compatibility (optional)
-          if [ ! -L /home/ubuntu ]; then
-            rm -rf /home/ubuntu
-            ln -s /mnt/fsx/ubuntu /home/ubuntu
-          fi
-          
-          # Set up SSH authorized_keys if they exist in backup
-          if [ -f /home/ubuntu.backup/.ssh/authorized_keys ]; then
-            echo "Restoring SSH keys..."
-            mkdir -p /mnt/fsx/ubuntu/.ssh
-            cp /home/ubuntu.backup/.ssh/authorized_keys /mnt/fsx/ubuntu/.ssh/
-            chmod 700 /mnt/fsx/ubuntu/.ssh
-            chmod 600 /mnt/fsx/ubuntu/.ssh/authorized_keys
-            chown -R ubuntu:ubuntu /mnt/fsx/ubuntu/.ssh
-          fi
-          
-          # Install AWS CLI v2 if not already installed
-          if ! command -v aws &> /dev/null; then
-            echo "Installing AWS CLI v2..."
-            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-            unzip awscliv2.zip
-            ./aws/install
-            rm -rf awscliv2.zip aws/
-          fi
-          
-          # Configure AWS CLI for ubuntu user
-          sudo -u ubuntu aws configure set region ${AWS::Region}
-          
-          echo "User data script completed successfully!"
-          echo "FSx mount status:"
-          df -h /mnt/fsx
-          
+            apt-get upgrade -y
+            
+            # Install SSM agent
+            echo "Installing SSM agent..."
+            apt-get install -y snapd
+            snap install amazon-ssm-agent --classic
+            systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service
+            systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service
+            
+            # Check if Lustre client is already installed (Deep Learning AMI should have it)
+            echo "Checking Lustre client installation..."
+            if ! command -v mount.lustre &> /dev/null; then
+              echo "Lustre client not found, attempting installation..."
+              apt-get update
+              apt-get install -y lustre-client-utils || echo "Lustre installation failed"
+            else
+              echo "Lustre client already installed"
+            fi
+            
+            # Mount FSx for Lustre
+            mkdir -p /mnt/fsx
+            mount -t lustre -o relatime,flock ${FSxFileSystemId}.fsx.${AWS::Region}.amazonaws.com@tcp:/${FSxMountName} /mnt/fsx
+            
+            # Add to fstab for persistent mounting
+            echo "${FSxFileSystemId}.fsx.${AWS::Region}.amazonaws.com@tcp:/${FSxMountName} /mnt/fsx lustre relatime,flock,_netdev 0 0" >> /etc/fstab
+            
+            # Create backup of original home directory
+            if [ -d /home/ubuntu ]; then
+              echo "Backing up existing home directory..."
+              cp -rp /home/ubuntu /home/ubuntu.backup
+            fi
+            
+            # Create ubuntu user directory on FSx if it doesn't exist
+            if [ ! -d /mnt/fsx/ubuntu ]; then
+              echo "Creating ubuntu directory on FSx..."
+              mkdir -p /mnt/fsx/ubuntu
+              cp -rp /home/ubuntu.backup/. /mnt/fsx/ubuntu/
+              chown -R ubuntu:ubuntu /mnt/fsx/ubuntu
+            fi
+            
+            # Update /etc/passwd to point home directory to FSx
+            echo "Updating home directory to FSx..."
+            usermod -d /mnt/fsx/ubuntu ubuntu
+            
+            # Create symlink for compatibility (optional)
+            if [ ! -L /home/ubuntu ]; then
+              rm -rf /home/ubuntu
+              ln -s /mnt/fsx/ubuntu /home/ubuntu
+            fi
+            
+            # Set up SSH authorized_keys if they exist in backup
+            if [ -f /home/ubuntu.backup/.ssh/authorized_keys ]; then
+              echo "Restoring SSH keys..."
+              mkdir -p /mnt/fsx/ubuntu/.ssh
+              cp /home/ubuntu.backup/.ssh/authorized_keys /mnt/fsx/ubuntu/.ssh/
+              chmod 700 /mnt/fsx/ubuntu/.ssh
+              chmod 600 /mnt/fsx/ubuntu/.ssh/authorized_keys
+              chown -R ubuntu:ubuntu /mnt/fsx/ubuntu/.ssh
+            fi
+            
+            # Install AWS CLI v2 if not already installed
+            if ! command -v aws &> /dev/null; then
+              echo "Installing AWS CLI v2..."
+              curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+              unzip awscliv2.zip
+              ./aws/install
+              rm -rf awscliv2.zip aws/
+            fi
+            
+            # Configure AWS CLI for ubuntu user
+            sudo -u ubuntu aws configure set region ${AWS::Region}
+            
+            echo "User data script completed successfully!"
+            echo "FSx mount status:"
+            df -h /mnt/fsx
+
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateId: !Ref EC2LaunchTemplate
+        Version: !GetAtt EC2LaunchTemplate.LatestVersionNumber
+      SubnetId: !Ref SubnetId
       Tags:
         - Key: Name
           Value: !Sub '${AWS::StackName}-EC2Instance'
