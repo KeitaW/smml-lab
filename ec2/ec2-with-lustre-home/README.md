@@ -45,6 +45,7 @@ export AWS_REGION="us-east-1"              # Replace with your target region
 export AVAILABILITY_ZONE="us-east-1f"      # Replace with your target AZ (must be in the same region)
 export KEY_PAIR_NAME="my-key-pair"         # Replace with your key pair name
 export INSTANCE_TYPE="g4dn.xlarge"         # Optional: change instance type
+export CAPACITY_RESERVATION_ID=""          # Optional: specify ODCR ID (e.g., "cr-0123456789abcdef0")
 ```
 
 ### Step 0: Prepare S3 Bucket for Data Repository Association
@@ -99,7 +100,7 @@ Deploy the EC2 stack using outputs from the infrastructure stack:
 ```bash
 aws cloudformation create-stack \
   --region ${AWS_REGION} \
-  --stack-name lustre-backed-dev-machine \
+  --stack-name fsx-lustre-ec2 \
   --template-body file://ec2-instance-stack.yaml \
   --parameters \
     ParameterKey=VPCId,ParameterValue=$(aws cloudformation describe-stacks --region ${AWS_REGION} --stack-name fsx-lustre-infrastructure --query 'Stacks[0].Outputs[?OutputKey==`VPCId`].OutputValue' --output text) \
@@ -109,6 +110,7 @@ aws cloudformation create-stack \
     ParameterKey=SecurityGroupId,ParameterValue=$(aws cloudformation describe-stacks --region ${AWS_REGION} --stack-name fsx-lustre-infrastructure --query 'Stacks[0].Outputs[?OutputKey==`SecurityGroupId`].OutputValue' --output text) \
     ParameterKey=KeyPairName,ParameterValue=${KEY_PAIR_NAME} \
     ParameterKey=InstanceType,ParameterValue=${INSTANCE_TYPE} \
+    ParameterKey=CapacityReservationId,ParameterValue=${CAPACITY_RESERVATION_ID:-} \
   --capabilities CAPABILITY_IAM
 ```
 
@@ -161,6 +163,7 @@ mount | grep lustre
 - `KeyPairName`: Name of existing EC2 key pair for SSH access
 - `AllowedSSHCidr`: CIDR block allowed for SSH access (default: 0.0.0.0/0)
 - `VolumeSize`: Root EBS volume size in GB (default: 100)
+- `CapacityReservationId`: Capacity Reservation ID to use for launching the instance (optional)
 
 ## Cost Considerations
 

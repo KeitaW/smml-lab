@@ -109,11 +109,88 @@ Resources:
       ToPort: 22
       CidrIp: !Ref AllowedSSHCidr
       Description: Allow SSH from specified CIDR
-  
+
+  AMILookupFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Role: !GetAtt AMILookupRole.Arn
+      Code:
+        ZipFile: |
+          import boto3
+          import cfnresponse
+          import logging
+          
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+          
+          def handler(event, context):
+              try:
+                  if event['RequestType'] in ['Create', 'Update']:
+                      ec2 = boto3.client('ec2', region_name=event['ResourceProperties']['Region'])
+                      
+                      # Find the latest Ubuntu 22 Deep Learning AMI
+                      response = ec2.describe_images(
+                          Owners=['amazon'],
+                          Filters=[
+                              {'Name': 'name', 'Values': ['*ubuntu-22.04*deep-learning*']},
+                              {'Name': 'state', 'Values': ['available']},
+                              {'Name': 'architecture', 'Values': ['x86_64']}
+                          ]
+                      )
+                      
+                      # Sort by creation date and get the latest
+                      images = sorted(response['Images'], key=lambda x: x['CreationDate'], reverse=True)
+                      
+                      if images:
+                          latest_ami = images[0]['ImageId']
+                          logger.info(f"Found latest Ubuntu 22 DLAMI: {latest_ami}")
+                          cfnresponse.send(event, context, cfnresponse.SUCCESS, {'AMI': latest_ami})
+                      else:
+                          raise Exception("No Ubuntu 22 Deep Learning AMI found")
+                  else:
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+              except Exception as e:
+                  logger.error(f"Error: {str(e)}")
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {})
+      Runtime: python3.9
+      Timeout: 30
+      Environment:
+        Variables:
+          REGION: !Ref 'AWS::Region'
+
+  AMILookupRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: EC2ReadAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:DescribeImages
+                Resource: '*'
+
+  LatestUbuntu22DLAMI:
+    Type: Custom::LatestUbuntu22DLAMI
+    Properties:
+      ServiceToken: !GetAtt AMILookupFunction.Arn
+      Region: !Ref 'AWS::Region'
+
   EC2Instance:
     Type: AWS::EC2::Instance
     Properties:
-      ImageId: ami-0124aee5d323132aa
+      ImageId: !GetAtt LatestUbuntu22DLAMI.AMI
       InstanceType: !Ref InstanceType
       KeyName: !Ref KeyPairName
       IamInstanceProfile: !Ref EC2InstanceProfile
@@ -215,11 +292,9 @@ Resources:
           echo "FSx mount status:"
           df -h /mnt/fsx
           
-      CapacityReservationSpecification: !If
-        - UseCapacityReservation
-        - CapacityReservationTarget:
-            CapacityReservationId: !Ref CapacityReservationId
-        - {}
+      CapacityReservationSpecification:
+        CapacityReservationTarget:
+          CapacityReservationId: !Ref CapacityReservationId
       Tags:
         - Key: Name
           Value: !Sub '${AWS::StackName}-EC2Instance'
@@ -253,5 +328,4 @@ Outputs:
   
   CapacityReservationId:
     Description: Capacity Reservation ID used for the instance
-    Value: !Ref CapacityReservationId
-    Condition: UseCapacityReservation 
+    Value: !Ref CapacityReservationId 
