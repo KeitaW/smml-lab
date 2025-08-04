@@ -1,0 +1,242 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'EC2 instance stack that automatically mounts FSx for Lustre as home directory'
+
+Parameters:
+  VPCId:
+    Description: VPC ID where the EC2 instance will be deployed
+    Type: AWS::EC2::VPC::Id
+  
+  SubnetId:
+    Description: Subnet ID where the EC2 instance will be deployed
+    Type: AWS::EC2::Subnet::Id
+  
+  SecurityGroupId:
+    Description: Security Group ID for the EC2 instance
+    Type: AWS::EC2::SecurityGroup::Id
+  
+  FSxFileSystemId:
+    Description: FSx for Lustre filesystem ID
+    Type: String
+  
+  FSxMountName:
+    Description: FSx for Lustre mount name
+    Type: String
+  
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: g4dn.xlarge
+    AllowedPattern: '^[a-z][0-9]+[a-z]*\.[a-z0-9]+$'
+    ConstraintDescription: Must be a valid EC2 instance type
+  
+  KeyPairName:
+    Description: Name of existing EC2 key pair for SSH access
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: Must be the name of an existing EC2 KeyPair
+  
+  VolumeSize:
+    Description: Size of root EBS volume in GB
+    Type: Number
+    Default: 100
+    MinValue: 50
+    MaxValue: 16384
+    ConstraintDescription: Must be between 50 and 16384 GB
+  
+  AllowedSSHCidr:
+    Description: CIDR block allowed to SSH to the instance
+    Type: String
+    Default: 0.0.0.0/0
+    AllowedPattern: '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$'
+    ConstraintDescription: Must be a valid CIDR block
+
+Resources:
+  # IAM Role for EC2 Instance
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: FSxAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - fsx:DescribeFileSystems
+                  - fsx:DescribeDataRepositoryTasks
+                  - fsx:CreateDataRepositoryTask
+                Resource: !Sub 'arn:aws:fsx:${AWS::Region}:${AWS::AccountId}:file-system/${FSxFileSystemId}'
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-EC2Role'
+  
+  # Instance Profile
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref EC2Role
+  
+  # Security Group Rule for SSH
+  SSHSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref SecurityGroupId
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      CidrIp: !Ref AllowedSSHCidr
+      Description: Allow SSH from specified CIDR
+  
+  # EC2 Instance
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-0124aee5d323132aa
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyPairName
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds:
+        - !Ref SecurityGroupId
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: !Ref VolumeSize
+            VolumeType: gp3
+            DeleteOnTermination: true
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -e
+          
+          # Log all output
+          exec > >(tee /var/log/user-data.log)
+          exec 2>&1
+          
+          echo "Starting user data script..."
+          
+          # Update system
+          apt-get update
+          apt-get upgrade -y
+          
+          # Install SSM agent
+          echo "Installing SSM agent..."
+          apt-get install -y snapd
+          snap install amazon-ssm-agent --classic
+          systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service
+          systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service
+          
+          # Check if Lustre client is already installed (Deep Learning AMI should have it)
+          echo "Checking Lustre client installation..."
+          if ! command -v mount.lustre &> /dev/null; then
+            echo "Lustre client not found, attempting installation..."
+            apt-get update
+            apt-get install -y lustre-client-utils || echo "Lustre installation failed"
+          else
+            echo "Lustre client already installed"
+          fi
+          
+          # Mount FSx for Lustre
+          mkdir -p /mnt/fsx
+          mount -t lustre -o relatime,flock ${FSxFileSystemId}.fsx.${AWS::Region}.amazonaws.com@tcp:/${FSxMountName} /mnt/fsx
+          
+          # Add to fstab for persistent mounting
+          echo "${FSxFileSystemId}.fsx.${AWS::Region}.amazonaws.com@tcp:/${FSxMountName} /mnt/fsx lustre relatime,flock,_netdev 0 0" >> /etc/fstab
+          
+          # Create backup of original home directory
+          if [ -d /home/ubuntu ]; then
+            echo "Backing up existing home directory..."
+            cp -rp /home/ubuntu /home/ubuntu.backup
+          fi
+          
+          # Create ubuntu user directory on FSx if it doesn't exist
+          if [ ! -d /mnt/fsx/ubuntu ]; then
+            echo "Creating ubuntu directory on FSx..."
+            mkdir -p /mnt/fsx/ubuntu
+            cp -rp /home/ubuntu.backup/. /mnt/fsx/ubuntu/
+            chown -R ubuntu:ubuntu /mnt/fsx/ubuntu
+          fi
+          
+          # Update /etc/passwd to point home directory to FSx
+          echo "Updating home directory to FSx..."
+          usermod -d /mnt/fsx/ubuntu ubuntu
+          
+          # Create symlink for compatibility (optional)
+          if [ ! -L /home/ubuntu ]; then
+            rm -rf /home/ubuntu
+            ln -s /mnt/fsx/ubuntu /home/ubuntu
+          fi
+          
+          # Set up SSH authorized_keys if they exist in backup
+          if [ -f /home/ubuntu.backup/.ssh/authorized_keys ]; then
+            echo "Restoring SSH keys..."
+            mkdir -p /mnt/fsx/ubuntu/.ssh
+            cp /home/ubuntu.backup/.ssh/authorized_keys /mnt/fsx/ubuntu/.ssh/
+            chmod 700 /mnt/fsx/ubuntu/.ssh
+            chmod 600 /mnt/fsx/ubuntu/.ssh/authorized_keys
+            chown -R ubuntu:ubuntu /mnt/fsx/ubuntu/.ssh
+          fi
+          
+          # Install AWS CLI v2 if not already installed
+          if ! command -v aws &> /dev/null; then
+            echo "Installing AWS CLI v2..."
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            ./aws/install
+            rm -rf awscliv2.zip aws/
+          fi
+          
+          # Configure AWS CLI for ubuntu user
+          sudo -u ubuntu aws configure set region ${AWS::Region}
+          
+          echo "User data script completed successfully!"
+          echo "FSx mount status:"
+          df -h /mnt/fsx
+          
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-EC2Instance'
+        - Key: FSxFileSystemId
+          Value: !Ref FSxFileSystemId
+
+Outputs:
+  InstanceId:
+    Description: EC2 Instance ID
+    Value: !Ref EC2Instance
+  
+  InstancePublicIP:
+    Description: Public IP address of the EC2 instance
+    Value: !GetAtt EC2Instance.PublicIp
+  
+  InstancePrivateIP:
+    Description: Private IP address of the EC2 instance
+    Value: !GetAtt EC2Instance.PrivateIp
+  
+  SSHCommand:
+    Description: SSH command to connect to the instance
+    Value: !Sub 'ssh -i ${KeyPairName}.pem ubuntu@${EC2Instance.PublicIp}'
+  
+  FSxMountPoint:
+    Description: FSx for Lustre mount point
+    Value: /mnt/fsx
+  
+  HomeDirectory:
+    Description: User home directory location
+    Value: /mnt/fsx/ubuntu
