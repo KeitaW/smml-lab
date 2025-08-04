@@ -34,6 +34,12 @@ Parameters:
     Type: AWS::EC2::KeyPair::KeyName
     ConstraintDescription: Must be the name of an existing EC2 KeyPair
   
+  CapacityReservationId:
+    Description: Capacity Reservation ID to use for launching the instance (optional)
+    Type: String
+    Default: ""
+    ConstraintDescription: Must be a valid capacity reservation ID if specified
+  
   VolumeSize:
     Description: Size of root EBS volume in GB
     Type: Number
@@ -48,6 +54,9 @@ Parameters:
     Default: 0.0.0.0/0
     AllowedPattern: '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$'
     ConstraintDescription: Must be a valid CIDR block
+
+Conditions:
+  UseCapacityReservation: !Not [!Equals [!Ref CapacityReservationId, ""]]
 
 Resources:
   EC2Role:
@@ -117,6 +126,12 @@ Resources:
             VolumeSize: !Ref VolumeSize
             VolumeType: gp3
             DeleteOnTermination: true
+      !If:
+        - UseCapacityReservation
+        - CapacityReservationSpecification:
+            CapacityReservationTarget:
+              CapacityReservationId: !Ref CapacityReservationId
+        - {}
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
@@ -235,4 +250,9 @@ Outputs:
   
   HomeDirectory:
     Description: User home directory location
-    Value: /mnt/fsx/ubuntu 
+    Value: /mnt/fsx/ubuntu
+  
+  CapacityReservationId:
+    Description: Capacity Reservation ID used for the instance
+    Value: !Ref CapacityReservationId
+    Condition: UseCapacityReservation 
