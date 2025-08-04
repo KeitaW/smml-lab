@@ -1,120 +1,45 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Infrastructure stack for EC2 with FSx for Lustre home directory - Creates VPC, FSx for Lustre filesystem, and networking components'
+Description: 'Working infrastructure stack for EC2 with FSx for Lustre'
 
 Parameters:
   AvailabilityZone:
-    Description: Availability Zone for deploying resources
     Type: AWS::EC2::AvailabilityZone::Name
-    ConstraintDescription: Must be a valid AWS Availability Zone
-  
-  VPCCidr:
-    Description: CIDR block for VPC
-    Type: String
-    Default: 10.0.0.0/16
-    AllowedPattern: '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$'
-    ConstraintDescription: Must be a valid CIDR block
-  
-  PublicSubnetCidr:
-    Description: CIDR block for public subnet
-    Type: String
-    Default: 10.0.1.0/24
-    AllowedPattern: '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$'
-    ConstraintDescription: Must be a valid CIDR block
-  
-  FSxStorageCapacity:
-    Description: Storage capacity of FSx for Lustre filesystem in GB (minimum 1200, increments of 1200)
-    Type: Number
-    Default: 1200
-    MinValue: 1200
-    ConstraintDescription: Must be at least 1200 GB and in increments of 1200 GB
-  
-  FSxThroughput:
-    Description: Per unit storage throughput for FSx PERSISTENT_2 filesystem in MB/s per TiB
-    Type: Number
-    Default: 250
-    AllowedValues: [125, 250, 500, 1000]
-    ConstraintDescription: Must be one of 125, 250, 500, or 1000 MB/s per TiB for PERSISTENT_2 with SSD
-  
-  S3BucketName:
-    Description: S3 bucket name for Data Repository Association
-    Type: String
-    MinLength: 3
-    MaxLength: 63
-    AllowedPattern: '^[a-z0-9][a-z0-9-]*[a-z0-9]$'
-    ConstraintDescription: Must be a valid S3 bucket name
-  
-  Compression:
-    Description: Data compression type
-    Type: String
-    AllowedValues:
-      - "LZ4"
-      - "NONE"
-    Default: "LZ4"
-  
-  LustreVersion:
-    Description: Lustre software version
-    Type: String
-    AllowedValues:
-      - "2.15"
-      - "2.12"
-    Default: "2.15"
-  
-  FileSystemPath:
-    Description: Path within the file system to link with S3 (e.g., /imported-data/)
-    Type: String
-    Default: '/imported-data/'
-  
-  DataRepositoryPath:
-    Description: S3 path for data repository association (e.g., s3://bucket-name/prefix/)
-    Type: String
-    Default: ''
-  
-  ImportedFileChunkSize:
-    Description: For files imported from a data repository, chunk size (in MiB) used for import
-    Type: Number
-    Default: 1024
-    MinValue: 1
-    MaxValue: 512000
 
 Resources:
-  # VPC
   VPC:
     Type: AWS::EC2::VPC
     Properties:
-      CidrBlock: !Ref VPCCidr
+      CidrBlock: 10.0.0.0/16
       EnableDnsHostnames: true
       EnableDnsSupport: true
       Tags:
         - Key: Name
           Value: !Sub '${AWS::StackName}-VPC'
-  
-  # Internet Gateway
+
   InternetGateway:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
         - Key: Name
           Value: !Sub '${AWS::StackName}-IGW'
-  
+
   VPCGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
       VpcId: !Ref VPC
       InternetGatewayId: !Ref InternetGateway
-  
-  # Public Subnet
+
   PublicSubnet:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
-      CidrBlock: !Ref PublicSubnetCidr
+      CidrBlock: 10.0.1.0/24
       AvailabilityZone: !Ref AvailabilityZone
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
           Value: !Sub '${AWS::StackName}-PublicSubnet'
-  
-  # Route Table for Public Subnet
+
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -122,7 +47,7 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub '${AWS::StackName}-PublicRouteTable'
-  
+
   PublicRoute:
     Type: AWS::EC2::Route
     DependsOn: VPCGatewayAttachment
@@ -130,62 +55,13 @@ Resources:
       RouteTableId: !Ref PublicRouteTable
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref InternetGateway
-  
+
   PublicSubnetRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref PublicSubnet
       RouteTableId: !Ref PublicRouteTable
-  
-  # S3 VPC Endpoint
-  S3Endpoint:
-    Type: AWS::EC2::VPCEndpoint
-    Properties:
-      VpcId: !Ref VPC
-      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
-      RouteTableIds:
-        - !Ref PublicRouteTable
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal: '*'
-            Action:
-              - 's3:*'
-            Resource:
-              - '*'
-  
-  # Security Group for FSx
-  FSxSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Security group for FSx for Lustre
-      VpcId: !Ref VPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 988
-          ToPort: 988
-          SourceSecurityGroupId: !Ref EC2SecurityGroup
-          Description: Allow Lustre LNET traffic from EC2 instances
-        - IpProtocol: tcp
-          FromPort: 1021
-          ToPort: 1023
-          SourceSecurityGroupId: !Ref EC2SecurityGroup
-          Description: Allow Lustre management traffic from EC2 instances
-        - IpProtocol: tcp
-          FromPort: 988
-          ToPort: 988
-          CidrIp: 0.0.0.0/0
-          Description: Allow Lustre LNET traffic from anywhere (for initial setup)
-      SecurityGroupEgress:
-        - IpProtocol: -1
-          CidrIp: 0.0.0.0/0
-          Description: Allow all outbound traffic
-      Tags:
-        - Key: Name
-          Value: !Sub '${AWS::StackName}-FSxSecurityGroup'
-  
-  # Security Group for EC2
+
   EC2SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -204,16 +80,37 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub '${AWS::StackName}-EC2SecurityGroup'
-  
 
-  
-  # FSx for Lustre Filesystem
+  FSxSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for FSx for Lustre
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 988
+          ToPort: 988
+          CidrIp: 0.0.0.0/0
+          Description: Allow Lustre LNET traffic
+        - IpProtocol: tcp
+          FromPort: 1021
+          ToPort: 1023
+          CidrIp: 0.0.0.0/0
+          Description: Allow Lustre management traffic
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-FSxSecurityGroup'
+
   FSxFileSystem:
     Type: AWS::FSx::FileSystem
     Properties:
       FileSystemType: LUSTRE
-      FileSystemTypeVersion: !Ref LustreVersion
-      StorageCapacity: !Ref FSxStorageCapacity
+      FileSystemTypeVersion: 2.15
+      StorageCapacity: 1200
       StorageType: SSD
       SubnetIds:
         - !Ref PublicSubnet
@@ -223,42 +120,11 @@ Resources:
         DeploymentType: PERSISTENT_2
         MetadataConfiguration:
           Mode: AUTOMATIC
-        PerUnitStorageThroughput: !Ref FSxThroughput
-        DataCompressionType: !Ref Compression
+        PerUnitStorageThroughput: 250
+        DataCompressionType: LZ4
       Tags:
         - Key: Name
           Value: !Sub '${AWS::StackName}-FSxLustre'
-  
-  # Data Repository Association
-  DataRepositoryAssociation:
-    Type: AWS::FSx::DataRepositoryAssociation
-    DependsOn: FSxFileSystem
-    Properties:
-      FileSystemId: !Ref FSxFileSystem
-      FileSystemPath: !Ref FileSystemPath
-      DataRepositoryPath: !If
-        - HasDataRepositoryPath
-        - !Ref DataRepositoryPath
-        - !Sub 's3://${S3BucketName}/imported-data/'
-      BatchImportMetaDataOnCreate: true
-      ImportedFileChunkSize: !Ref ImportedFileChunkSize
-      S3:
-        AutoImportPolicy:
-          Events:
-            - NEW
-            - CHANGED
-            - DELETED
-        AutoExportPolicy:
-          Events:
-            - NEW
-            - CHANGED
-            - DELETED
-      Tags:
-        - Key: Name
-          Value: !Sub '${AWS::StackName}-DataRepositoryAssociation'
-
-Conditions:
-  HasDataRepositoryPath: !Not [!Equals [!Ref DataRepositoryPath, '']]
 
 Outputs:
   VPCId:
@@ -266,45 +132,33 @@ Outputs:
     Value: !Ref VPC
     Export:
       Name: !Sub '${AWS::StackName}-VPCId'
-  
+
   SubnetId:
     Description: Public subnet ID
     Value: !Ref PublicSubnet
     Export:
       Name: !Sub '${AWS::StackName}-SubnetId'
-  
+
   SecurityGroupId:
     Description: EC2 Security Group ID
     Value: !Ref EC2SecurityGroup
     Export:
       Name: !Sub '${AWS::StackName}-SecurityGroupId'
-  
+
   FSxFileSystemId:
     Description: FSx for Lustre filesystem ID
     Value: !Ref FSxFileSystem
     Export:
       Name: !Sub '${AWS::StackName}-FSxFileSystemId'
-  
-  FSxMountName:
-    Description: FSx for Lustre mount name
-    Value: !GetAtt FSxFileSystem.LustreMountName
-    Export:
-      Name: !Sub '${AWS::StackName}-FSxMountName'
-  
+
   FSxDNSName:
     Description: FSx for Lustre DNS name
     Value: !GetAtt FSxFileSystem.DNSName
     Export:
       Name: !Sub '${AWS::StackName}-FSxDNSName'
-  
-  S3EndpointId:
-    Description: S3 VPC Endpoint ID
-    Value: !Ref S3Endpoint
+
+  FSxMountName:
+    Description: FSx for Lustre mount name
+    Value: !GetAtt FSxFileSystem.LustreMountName
     Export:
-      Name: !Sub '${AWS::StackName}-S3EndpointId'
-  
-  DataRepositoryAssociationId:
-    Description: Data Repository Association ID
-    Value: !Ref DataRepositoryAssociation
-    Export:
-      Name: !Sub '${AWS::StackName}-DataRepositoryAssociationId'
+      Name: !Sub '${AWS::StackName}-FSxMountName' 
