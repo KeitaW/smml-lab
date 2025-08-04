@@ -20,6 +20,7 @@ The architecture consists of two CloudFormation stacks:
 
 ### EC2 Stack
 - **EC2 Instance**: Based on AWS Deep Learning AMI (DLAMI)
+- **Elastic IP**: Static public IP address for persistent connectivity
 - **User Data Script**: Automatically mounts FSx for Lustre as home directory
 - **IAM Role**: Necessary permissions for FSx access
 - **Security Group**: Allows SSH access and FSx communication
@@ -123,18 +124,27 @@ aws cloudformation wait stack-create-complete \
 
 ### Step 4: Connect to EC2 Instance
 
-Once the EC2 stack is deployed, get the instance public IP:
+Once the EC2 stack is deployed, get the instance Elastic IP address:
 ```bash
 aws cloudformation describe-stacks \
   --region ${AWS_REGION} \
   --stack-name fsx-lustre-ec2 \
-  --query 'Stacks[0].Outputs[?OutputKey==`InstancePublicIP`].OutputValue' \
+  --query 'Stacks[0].Outputs[?OutputKey==`ElasticIPAddress`].OutputValue' \
+  --output text
+```
+
+Alternatively, you can get the complete SSH command directly from the stack outputs:
+```bash
+aws cloudformation describe-stacks \
+  --region ${AWS_REGION} \
+  --stack-name fsx-lustre-ec2 \
+  --query 'Stacks[0].Outputs[?OutputKey==`SSHCommand`].OutputValue' \
   --output text
 ```
 
 Connect via SSH:
 ```bash
-ssh -i <your-key.pem> ubuntu@<instance-public-ip>
+ssh -i <your-key.pem> ubuntu@<elastic-ip-address>
 ```
 
 Verify FSx for Lustre is mounted:
@@ -190,7 +200,7 @@ mount | grep lustre
 1. Verify security group allows inbound SSH (port 22) from your IP
 2. Check instance is in running state
 3. Ensure you're using the correct key pair
-4. Verify instance has public IP assigned
+4. Verify Elastic IP is properly associated with the instance
 
 ### Performance Issues
 1. Ensure instance type supports network performance for FSx throughput

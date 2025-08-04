@@ -297,6 +297,14 @@ Resources:
             echo "FSx mount status:"
             df -h /mnt/fsx
 
+  ElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-ElasticIP'
+
   EC2Instance:
     Type: AWS::EC2::Instance
     Properties:
@@ -310,14 +318,20 @@ Resources:
         - Key: FSxFileSystemId
           Value: !Ref FSxFileSystemId
 
+  ElasticIPAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: !Ref EC2Instance
+      EIP: !Ref ElasticIP
+
 Outputs:
   InstanceId:
     Description: EC2 Instance ID
     Value: !Ref EC2Instance
   
-  InstancePublicIP:
-    Description: Public IP address of the EC2 instance
-    Value: !GetAtt EC2Instance.PublicIp
+  ElasticIPAddress:
+    Description: Elastic IP address assigned to the EC2 instance
+    Value: !Ref ElasticIP
   
   InstancePrivateIP:
     Description: Private IP address of the EC2 instance
@@ -325,7 +339,7 @@ Outputs:
   
   SSHCommand:
     Description: SSH command to connect to the instance
-    Value: !Sub 'ssh -i ${KeyPairName}.pem ubuntu@${EC2Instance.PublicIp}'
+    Value: !Sub 'ssh -i ${KeyPairName}.pem ubuntu@${ElasticIP}'
   
   FSxMountPoint:
     Description: FSx for Lustre mount point
