@@ -145,6 +145,12 @@ Outputs:
     Export:
       Name: !Sub '${AWS::StackName}-SecurityGroupId'
 
+  FSxSecurityGroupId:
+    Description: FSx Security Group ID
+    Value: !Ref FSxSecurityGroup
+    Export:
+      Name: !Sub '${AWS::StackName}-FSxSecurityGroupId'
+
   FSxFileSystemId:
     Description: FSx for Lustre filesystem ID
     Value: !Ref FSxFileSystem

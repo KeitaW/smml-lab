@@ -14,6 +14,10 @@ Parameters:
     Description: Security Group ID for the EC2 instance
     Type: AWS::EC2::SecurityGroup::Id
   
+  FSxSecurityGroupId:
+    Description: Security Group ID for FSx access
+    Type: AWS::EC2::SecurityGroup::Id
+  
   FSxFileSystemId:
     Description: FSx for Lustre filesystem ID
     Type: String
@@ -197,6 +201,7 @@ Resources:
           Arn: !GetAtt EC2InstanceProfile.Arn
         SecurityGroupIds:
           - !Ref SecurityGroupId
+          - !Ref FSxSecurityGroupId
         CapacityReservationSpecification: !If
           - UseCapacityReservation
           - CapacityReservationTarget:
@@ -219,13 +224,62 @@ Resources:
             
             echo "Starting user data script..."
             
-            # Update system
-            apt-get update
-            apt-get upgrade -y
+            # Function to wait for apt lock
+            wait_for_apt() {
+              local maxwait=300  # 5 minutes
+              local elapsed=0
+              
+              while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || fuser /var/lib/dpkg/lock >/dev/null 2>&1 || fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do
+                if [ $elapsed -ge $maxwait ]; then
+                  echo "ERROR: Timeout waiting for apt lock after $maxwait seconds"
+                  return 1
+                fi
+                echo "Waiting for apt lock to be released... ($elapsed/$maxwait seconds)"
+                sleep 5
+                elapsed=$((elapsed + 5))
+              done
+              
+              echo "apt lock released, proceeding..."
+              return 0
+            }
+            
+            # Wait for any existing apt processes to complete
+            wait_for_apt
+            
+            # Disable automatic updates temporarily to prevent conflicts
+            systemctl stop unattended-upgrades || true
+            systemctl disable unattended-upgrades || true
+            
+            # Clean up duplicate repository entries if they exist
+            rm -f /etc/apt/sources.list.d/cuda-ubuntu2204-x86_64.list || true
+            
+            # Update system with retry logic
+            for attempt in 1 2 3; do
+              echo "Attempt $attempt: Running apt-get update..."
+              if wait_for_apt && apt-get update; then
+                echo "apt-get update succeeded"
+                break
+              else
+                echo "apt-get update failed, waiting before retry..."
+                sleep 10
+              fi
+            done
+            
+            # Upgrade system with retry logic
+            for attempt in 1 2 3; do
+              echo "Attempt $attempt: Running apt-get upgrade..."
+              if wait_for_apt && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y; then
+                echo "apt-get upgrade succeeded"
+                break
+              else
+                echo "apt-get upgrade failed, waiting before retry..."
+                sleep 10
+              fi
+            done
             
             # Install SSM agent
             echo "Installing SSM agent..."
-            apt-get install -y snapd
+            wait_for_apt && DEBIAN_FRONTEND=noninteractive apt-get install -y snapd
             snap install amazon-ssm-agent --classic
             systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service
             systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service
@@ -234,8 +288,8 @@ Resources:
             echo "Checking Lustre client installation..."
             if ! command -v mount.lustre &> /dev/null; then
               echo "Lustre client not found, attempting installation..."
-              apt-get update
-              apt-get install -y lustre-client-utils || echo "Lustre installation failed"
+              wait_for_apt && apt-get update
+              wait_for_apt && DEBIAN_FRONTEND=noninteractive apt-get install -y lustre-client-utils || echo "Lustre installation failed"
             else
               echo "Lustre client already installed"
             fi
@@ -292,6 +346,10 @@ Resources:
             
             # Configure AWS CLI for ubuntu user
             sudo -u ubuntu aws configure set region ${AWS::Region}
+            
+            # Re-enable automatic updates
+            systemctl enable unattended-upgrades || true
+            systemctl start unattended-upgrades || true
             
             echo "User data script completed successfully!"
             echo "FSx mount status:"

@@ -109,6 +109,7 @@ aws cloudformation create-stack \
     ParameterKey=FSxFileSystemId,ParameterValue=$(aws cloudformation describe-stacks --region ${AWS_REGION} --stack-name fsx-lustre-infrastructure --query 'Stacks[0].Outputs[?OutputKey==`FSxFileSystemId`].OutputValue' --output text) \
     ParameterKey=FSxMountName,ParameterValue=$(aws cloudformation describe-stacks --region ${AWS_REGION} --stack-name fsx-lustre-infrastructure --query 'Stacks[0].Outputs[?OutputKey==`FSxMountName`].OutputValue' --output text) \
     ParameterKey=SecurityGroupId,ParameterValue=$(aws cloudformation describe-stacks --region ${AWS_REGION} --stack-name fsx-lustre-infrastructure --query 'Stacks[0].Outputs[?OutputKey==`SecurityGroupId`].OutputValue' --output text) \
+    ParameterKey=FSxSecurityGroupId,ParameterValue=$(aws cloudformation describe-stacks --region ${AWS_REGION} --stack-name fsx-lustre-infrastructure --query 'Stacks[0].Outputs[?OutputKey==`FSxSecurityGroupId`].OutputValue' --output text) \
     ParameterKey=KeyPairName,ParameterValue=${KEY_PAIR_NAME} \
     ParameterKey=InstanceType,ParameterValue=${INSTANCE_TYPE} \
     ParameterKey=CapacityReservationId,ParameterValue=${CAPACITY_RESERVATION_ID:-} \
@@ -171,6 +172,8 @@ mount | grep lustre
 ### EC2 Instance Stack Parameters
 - `InstanceType`: EC2 instance type (default: g4dn.xlarge)
 - `KeyPairName`: Name of existing EC2 key pair for SSH access
+- `SecurityGroupId`: Security Group ID for SSH access to the EC2 instance
+- `FSxSecurityGroupId`: Security Group ID for FSx access (required for port 988 communication)
 - `AllowedSSHCidr`: CIDR block allowed for SSH access (default: 0.0.0.0/0)
 - `VolumeSize`: Root EBS volume size in GB (default: 100)
 - `CapacityReservationId`: Capacity Reservation ID to use for launching the instance (optional)
@@ -192,9 +195,12 @@ mount | grep lustre
 ## Troubleshooting
 
 ### FSx for Lustre Not Mounting
-1. Check security group rules allow traffic on port 988 (Lustre)
-2. Verify the FSx filesystem is in AVAILABLE state
-3. Check EC2 instance logs: `sudo journalctl -u cloud-init`
+1. Check that the EC2 instance is assigned to both security groups:
+   - EC2 security group (for SSH access)
+   - FSx security group (for port 988 Lustre communication)
+2. Verify security group rules allow traffic on port 988 (Lustre)
+3. Verify the FSx filesystem is in AVAILABLE state
+4. Check EC2 instance logs: `sudo journalctl -u cloud-init`
 
 ### Cannot Connect via SSH
 1. Verify security group allows inbound SSH (port 22) from your IP
